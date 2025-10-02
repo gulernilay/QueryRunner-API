@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.env.*
+*.sqlite3
+
+# VS Code
+.vscode/
+
+# Test/coverage
+htmlcov/
+.coverage
+.cache/
+.pytest_cache/
+*.log
+
+# Locust
+*.csv
+*.stats
+
+# OS
+.DS_Store
+Thumbs.db
