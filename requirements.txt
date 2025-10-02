@@ -12,8 +12,8 @@ idna==3.10
 iniconfig==2.1.0
 jwt==1.4.0
 packaging==25.0
+pip==23.2.1
 pluggy==1.6.0
-psycopg2==2.9.10
 pycparser==2.23
 pydantic==2.11.9
 pydantic_core==2.33.2
