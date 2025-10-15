@@ -1,28 +1,61 @@
-# Microsoft SQL Server ODBC Driver 18 kurulumu
-FROM python:3.11-slim 
+# escape=`
+FROM mcr.microsoft.com/windows/servercore:ltsc2022
 
-# Sistem paketlerini yükle
-RUN apt-get update && \
-    apt-get install -y curl gnupg2 apt-transport-https gcc unixodbc unixodbc-dev && \
-    curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/microsoft.gpg && \
-    curl https://packages.microsoft.com/config/debian/11/prod.list | tee /etc/apt/sources.list.d/mssql-release.list && \
-    apt-get update && ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+SHELL ["powershell", "-NoLogo", "-ExecutionPolicy", "Bypass", "-Command"]
 
-# Ortam değişkenlerini ayarla
-ENV PYTHONDONTWRITEBYTECODE=1
+# ===============================
+# 1️⃣ Chocolatey yükle
+# ===============================
+RUN Set-ExecutionPolicy Bypass -Scope Process -Force; `
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; `
+    iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+# ===============================
+# 2️⃣ Python 3.13 + VC++ Runtime
+# ===============================
+RUN choco install -y vcredist140; `
+    choco install -y python --version=3.11.5 --install-arguments="'/PrependPath /Quiet'"
+
+# ===============================
+# 3️⃣ Yardımcı araçlar
+# ===============================
+RUN choco install -y git; `
+    choco install -y 7zip; `
+    choco install -y curl
+
+# ===============================
+# 4️⃣ Uygulama dosyalarını kopyala
+# ===============================
+WORKDIR C:\\app
+COPY . C:\\app
+
+# ===============================
+# 5️⃣ Python bağımlılıklarını yükle
+# ===============================
+RUN if (Test-Path C:\app\requirements.txt) { `
+        python -m pip install --no-cache-dir -r requirements.txt `
+    } else { `
+        Write-Host 'requirements.txt bulunamadı, atlanıyor.' `
+    }
+
+# ===============================
+# 6️⃣ Ortam değişkenleri
+# ===============================
 ENV PYTHONUNBUFFERED=1
 
-# Çalışma dizinini oluştur
-WORKDIR /app
+# ===============================
+# 7️⃣ FastAPI portu
+# ===============================
+EXPOSE 8000
 
-# Gereksinimleri kopyala ve yükle
-COPY requirements.txt .
-RUN pip install --upgrade pip
-RUN pip install --no-cache-dir -r requirements.txt
+ENV PYTHONUTF8=1
 
-# Proje dosyalarını kopyala
-COPY . .
+# ===============================
+# 8️⃣ Çalıştırma komutu
+# ===============================
+ENTRYPOINT ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 
-# Varsayılan olarak uvicorn ile başlat
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# ===============================
+# 9️⃣ SQL Server ODBC Driver 18
+# ===============================
+#RUN powershell -NoLogo -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/?linkid=2156821' -OutFile 'msodbcsql17.msi'; Start-Process msiexec.exe -ArgumentList '/i msodbcsql17.msi /quiet /norestart IACCEPTMSODBCSQLLICENSETERMS=YES' -Wait; Remove-Item msodbcsql17.msi -Force"

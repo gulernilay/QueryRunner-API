@@ -1,0 +1,27 @@
+# Windows temporary files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+env/
+venv/
+.vscode/
+.idea/
+
+# Git and build
+.git/
+.gitignore
+*.log
+
+# Windows system temp
+*.tmp
+*.temp
+*.bak
+tombstones.txt

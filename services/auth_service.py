@@ -1,5 +1,4 @@
 #Token üretme ve doğrulama işlemleri
-
 from utils.jwt_utils import generate_jwt
 from database import get_user_by_username
 import bcrypt
