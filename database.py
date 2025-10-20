@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
-env_path = os.path.join(base_dir, "..", ".env")
+env_path = os.path.join(base_dir,".env")
 
 
 if not os.getenv("DB_SERVER"):
@@ -62,14 +62,14 @@ def get_user_by_username(username: str , password: str):
     return None
 
 def get_sql_from_table2(key: str):
-    logger.info("get_sql_from_table2 fonksiyonu . Key:", key)
+    logger.info(f"get_sql_from_table2 fonksiyonu. Key: {key}")
     conn = connect()
     cur = conn.cursor()
-    logger.info("Başlatılacak sorgu:", "SELECT query FROM ChefPanel_test.dbo.nly_sql_api WHERE key_ = ?", key)
+    logger.info(f"Başlatılacak sorgu: SELECT query FROM ChefPanel_test.dbo.nly_sql_api WHERE key_ = '{key}'")
     cur.execute("SELECT query FROM ChefPanel_test.dbo.nly_sql_api WHERE key_ = ?", (key,))
     row = cur.fetchone()
-    cur.close(); conn.close()
-
+    cur.close()
+    conn.close()
     return row[0] if row else None
 
 def run_sql(sql: str):

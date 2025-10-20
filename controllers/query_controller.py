@@ -1,8 +1,11 @@
 # controllers/query_controller.py
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from services.query_service import run_queries
+from services.query_service import run_queries_simple
 from utils.jwt_utils import verify_jwt
+from pydantic import BaseModel
+from typing import List, Optional
+
 """
 APIRouter → FastAPI’de endpointleri modüler yönetmek için kullanılıyor (controller mantığı).
 Depends → Dependency injection. Yani bir endpoint çağrılırken otomatik parametre sağlamak için.
@@ -19,26 +22,28 @@ security = HTTPBearer()
 router → Bu controller’ın router’ı. main.py içinde app.include_router() ile bağlanıyor.
 security = HTTPBearer() → Header’dan Authorization: Bearer <token> bilgisini okumak için hazır FastAPI helper.
 """
+class QueryBody(BaseModel):
+    items: List[str]
+    Tarih: Optional[str] = None  # örn: "02.01.2025 ile 31.08.2025"
+
 
 @router.post("/")
 def query(
-    items: list[str], 
+    body: QueryBody,
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    # Header'dan token al
     token = credentials.credentials
     payload = verify_jwt(token)
 
     if not payload:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    # Token içindeki user_id
     user_id = payload.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    # Sorguları çalıştır
-    result = run_queries(items)
+    # Tarih parametresi varsa onu da servise gönder
+    result = run_queries_simple(body.items, date_range=body.Tarih)
     return result
 """
 return {
