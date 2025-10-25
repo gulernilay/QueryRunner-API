@@ -1,13 +1,29 @@
 # QueryRunner API
 
-QueryRunner API, kullanıcı doğrulama ve SQL sorgu çalıştırma işlemleri için geliştirilmiş bir FastAPI tabanlı web servisidir.
+QueryRunner API, kullanıcı doğrulama ve SQL sorgu çalıştırma işlemleri için geliştirilmiş bir FastAPI tabanlı web servisidir.Yeni sürümle birlikte artık tarih aralıklı sorgular ve tarih parametresi olmadan çalışan statik sorgular da desteklenmektedir.
+
+---
+
+## 🚀 Versiyon
+
+**v2.1.0**
+
+- **v1.0.0** → Statik SQL sorguları
+- **v2.0.0** → Dinamik tarih aralıklı sorgular
+- **v2.1.0** → Yeni endpoint: `/query/v2/run-basic` (tarihsiz, İK gibi sabit sorgular için)
+
+---
 
 ## Özellikler
 
 - Kullanıcı login (JWT token üretimi)
 - Token doğrulama
-- SQL sorgularını çalıştırma
+- Tarih aralıklı sorgular (örnek: `"02.01.2025 ile 31.08.2025"`)
+- Tarih parametresi olmadan çalışan statik sorgular
 - Sağlık kontrolü endpoint (`/`)
+- Docker ile containerize deploy desteği
+
+---
 
 ## Kurulum
 
@@ -46,9 +62,68 @@ API varsayılan olarak `http://127.0.0.1:8000` adresinde çalışır.
 
 ## API Endpointleri
 
-- `GET /` : Sağlık kontrolü
-- `POST /auth/login` : Kullanıcı girişi
-- `POST /query/` : SQL sorgusu çalıştırma
+- `GET /` : Sağlık kontrolü sağlar.Sunucunun çalıştığını doğrulamak için kullanılır.
+- `POST /auth/login` : Kullanıcı girişi yapar ve JWT token döner.
+  Body örneği:
+
+{
+"username": "your_user_name",
+"password": "your_password"
+}
+
+Yanıt:
+
+{
+"access_token": "<token>",
+"token_type": "bearer"
+}
+
+- `POST /query/` : Veritabanında kayıtlı SQL sorgularını çalıştırır.İsteğe bağlı olarak tarih aralığı gönderilebilir.
+
+## Body örneği (tarihli):
+
+{
+"items": ["Net_Satışlar"],
+"Tarih": "02.01.2025 ile 31.08.2025"
+}
+
+## Body örneği (tarihsiz):
+
+{
+"items": ["Dönen_Varlıklar"]
+}
+
+- `POST /query/v2/run-basic`
+
+Kullanıcıdan tarih bilgisi almadan statik SQL sorgularını çalıştırır (örneğin İK raporları gibi).
+
+## Body örneği:
+
+{
+"key": "IK_Aylik_Ozet"
+}
+
+## Yanıt:
+
+{
+"user_id": 12,
+"key": "IK_Aylik_Ozet",
+"rowcount": 24,
+"data": [...]
+}
+
+## Docker ile Çalıştırma
+
+docker build -t queryrunner-api .
+docker run -p 8000:8000 queryrunner-api
+
+## Sürüm Geçmişi
+
+| Versiyon   | Açıklama                                                   |
+| ---------- | ---------------------------------------------------------- |
+| **v1.0.0** | Statik SQL sorguları                                       |
+| **v2.0.0** | Tarih aralıklı sorgu desteği eklendi                       |
+| **v2.1.0** | `/query/v2/run-basic` endpoint eklendi (tarihsiz sorgular) |
 
 ## Katkı Sağlama
 

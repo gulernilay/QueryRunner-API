@@ -2,8 +2,8 @@
   "openapi": "3.0.0",
   "info": {
     "title": "QueryRunner-API",
-    "version": "1.0.0",
-    "description": "API for authentication and query execution"
+    "version": "2.1.0",
+    "description": "API for authentication and SQL query execution. Supports dynamic date-based queries and static queries without date parameters."
   },
   "servers": [
     {
@@ -58,7 +58,7 @@
     "/query/query": {
       "post": {
         "summary": "Run query",
-        "description": "Execute a query using the authenticated session.",
+        "description": "Execute SQL queries from nly_sql_api table using the authenticated session. Supports optional date range replacement.",
         "parameters": [
           {
             "name": "Authorization",
@@ -74,15 +74,23 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "array",
-                "items": { "type": "string" }
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  },
+                  "Tarih": {
+                    "type": "string",
+                    "example": "02.01.2025 ile 31.08.2025"
+                  }
+                },
+                "required": ["items"]
               },
-              "example": [
-                "Dönen_Varlıklar",
-                "Kısa_Vadeli_Borçlar",
-                "Net_Dönem_Karı",
-                "Net_Satışlar"
-              ]
+              "example": {
+                "items": ["Dönen_Varlıklar", "Net_Satışlar"],
+                "Tarih": "02.01.2025 ile 31.08.2025"
+              }
             }
           }
         },
@@ -95,6 +103,61 @@
                   "type": "object",
                   "properties": {
                     "result": {
+                      "type": "object",
+                      "additionalProperties": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/query/v2/run-basic": {
+      "post": {
+        "summary": "Run static query (no date required)",
+        "description": "Execute static SQL queries from nly_sql_api table without requiring a date parameter (e.g., HR summary queries).",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "description": "Bearer access token",
+            "schema": { "type": "string" },
+            "example": "Bearer <token>"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "key": { "type": "string" }
+                },
+                "required": ["key"]
+              },
+              "example": { "key": "IK_Aylik_Ozet" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Static query executed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user_id": { "type": "integer" },
+                    "key": { "type": "string" },
+                    "rowcount": { "type": "integer" },
+                    "data": {
                       "type": "array",
                       "items": { "type": "object" }
                     }
@@ -105,6 +168,9 @@
           },
           "401": {
             "description": "Unauthorized"
+          },
+          "404": {
+            "description": "SQL key not found"
           }
         }
       }
