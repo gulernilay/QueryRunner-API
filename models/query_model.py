@@ -15,3 +15,6 @@ class QueryMapping(BaseModel):
 # API’nin döndüreceği response
 class QueryResponse(BaseModel):
     results: dict
+
+class QueryRunBasicRequest(BaseModel):
+    key: str 
