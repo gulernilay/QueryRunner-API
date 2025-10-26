@@ -5,7 +5,7 @@ SHELL ["powershell", "-NoLogo", "-ExecutionPolicy", "Bypass", "-Command"]
 
 # ===============================
 # 1️⃣ Chocolatey yükle
-# ===============================
+# ===============================   
 RUN Set-ExecutionPolicy Bypass -Scope Process -Force; `
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; `
     iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
@@ -15,7 +15,6 @@ RUN Set-ExecutionPolicy Bypass -Scope Process -Force; `
 # ===============================
 RUN choco install -y vcredist140; `
     choco install -y python --version=3.11.5 --install-arguments="'/PrependPath /Quiet'"
-
 # ===============================
 # 3️⃣ Yardımcı araçlar
 # ===============================

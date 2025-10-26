@@ -51,7 +51,7 @@ def get_user_by_username(username: str , password: str):
         "Bağlantı başarısız"
     cur = conn.cursor()
     cur.execute(
-    "SELECT * FROM ChefPanel_test.dbo.skymod_api_users WHERE kullanici = ? AND sifre = ?",
+    "SELECT * FROM [AUTHENTICATION TABLE] WHERE kullanici = ? AND sifre = ?",
     (username, password)
     )
     row = cur.fetchone()
@@ -66,7 +66,7 @@ def get_sql_from_table2(key: str):
     conn = connect()
     cur = conn.cursor()
     logger.info(f"Başlatılacak sorgu: SELECT query FROM ChefPanel_test.dbo.nly_sql_api WHERE key_ = '{key}'")
-    cur.execute("SELECT query FROM ChefPanel_test.dbo.nly_sql_api WHERE key_ = ?", (key,))
+    cur.execute("SELECT query FROM [QUERY TABLE] WHERE key_ = ?", (key,))
     row = cur.fetchone()
     cur.close()
     conn.close()

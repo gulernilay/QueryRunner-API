@@ -49,6 +49,30 @@ QueryRunner API, kullanıcı doğrulama ve SQL sorgu çalıştırma işlemleri i
     DB_USER=your_db_username
     DB_PASSWORD=your_db_password
    ```
+4. **Veri Tabanı tablolarını hazırlayın:**
+
+   ## Database schema
+
+   database.py dosyasındaki get_user_by_username() fonksiyonu için kullanılacak Authentication tablosu (kullanıcı doğrulama için):
+
+   ```sql
+   CREATE TABLE [AUTHENTICATION TABLE](
+      [id] INT IDENTITY(1,1) PRIMARY KEY,
+      [kullanici] NVARCHAR(50) NOT NULL,
+      [sifre] NVARCHAR(255) NOT NULL
+   );
+   ```
+
+   database.py dosyasındaki get_sql_from_table2() fonksiyonu için kullanılacak Query tablosu (sorgu ve prompt saklanır):
+
+   ```sql
+   CREATE TABLE [ChefPanel_test].[dbo].[nly_sql_api] (
+      [id] INT IDENTITY(1,1) PRIMARY KEY,
+      [key_] NVARCHAR(100) NOT NULL,
+      [prompt] NVARCHAR(MAX) NULL,
+      [query] NVARCHAR(MAX) NOT NULL
+   );
+   ```
 
 ## Çalıştırma
 
