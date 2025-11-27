@@ -1,0 +1,188 @@
+openapi: 3.0.3
+info:
+  title: QueryRunner API
+  description: >
+    QueryRunner API, SQL Server üzerinde güvenli ve kontrollü sorgu yürütmek için geliştirilmiş FastAPI tabanlı bir servistir.
+
+    Bu API JWT tabanlı authentication, tarih aralıklı sorgular, statik sorgular, güvenli raw SQL çalıştırma ve MailLogger ile e-mail
+    log gönderimi özelliklerini destekler.
+  version: "2.2.0"
+
+servers:
+  - url: http://localhost:8000
+    description: Local Development Server
+
+tags:
+  - name: Auth
+    description: JWT tabanlı kullanıcı doğrulama
+  - name: Query
+    description: Kayıtlı SQL sorgularını çalıştıran endpointler
+  - name: Raw SQL
+    description: Güvenli SELECT/WITH tabanlı SQL yürütme
+  - name: System
+    description: Sistem ve sağlık kontrolü endpointleri
+
+paths:
+  /:
+    get:
+      summary: Health Check
+      description: Sunucunun aktif olup olmadığını doğrular.
+      tags:
+        - System
+      responses:
+        "200":
+          description: API is running
+          content:
+            application/json:
+              example:
+                status: ok
+
+  /auth/login:
+    post:
+      summary: Kullanıcı girişi (JWT Token)
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: test_user
+                password:
+                  type: string
+                  example: test_password
+      responses:
+        "200":
+          description: JWT token başarıyla üretildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+              example:
+                access_token: "eyJhbGciOiJIUzI1NiIsInR..."
+                token_type: bearer
+        "401":
+          description: Kullanıcı adı veya şifre hatalı
+
+  /query/:
+    post:
+      summary: Kayıtlı SQL sorgularını çalıştır
+      tags:
+        - Query
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: string
+                  example: ["Net_Satışlar"]
+                Tarih:
+                  type: string
+                  description: "Tarih aralığı örnek: 02.01.2025 ile 31.08.2025"
+                  example: "02.01.2025 ile 31.08.2025"
+      responses:
+        "200":
+          description: Başarılı
+          content:
+            application/json:
+              example:
+                Net_Satışlar: 1500000
+        "401":
+          description: Token geçersiz
+
+  /query/v2/run-basic:
+    post:
+      summary: Tarihsiz statik SQL sorgularını çalıştır
+      tags:
+        - Query
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                key:
+                  type: string
+                  example: IK_Aylik_Ozet
+      responses:
+        "200":
+          description: Sorgu başarıyla çalıştırıldı
+          content:
+            application/json:
+              example:
+                user_id: 12
+                key: IK_Aylik_Ozet
+                rowcount: 24
+                data:
+                  - { "Departman": "Sos İşletme", "PersonelSayisi": 18 }
+        "404":
+          description: SQL key bulunamadı
+        "401":
+          description: Token geçersiz
+
+  /query/raw/run-sql:
+    post:
+      summary: Güvenli Raw SQL çalıştır (sadece SELECT/WITH)
+      tags:
+        - Raw SQL
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sql:
+                  type: string
+                  description: "Sadece SELECT veya WITH ile başlamalıdır."
+                  example: "SELECT TOP 10 * FROM ..."
+                note:
+                  type: string
+                  nullable: true
+                  description: "Opsiyonel log mesajı"
+                  example: "IK raporu test sorgusu"
+      responses:
+        "200":
+          description: Sorgu başarıyla çalıştırıldı
+          content:
+            application/json:
+              example:
+                user_id: 12
+                rowcount: 3
+                columns: ["Name", "Age"]
+                rows:
+                  - { "Name": "Nilay", "Age": 28 }
+                  - { "Name": "Ayşe", "Age": 29 }
+        "400":
+          description: >
+            SELECT/WITH dışındaki SQL komutları yasaklanmıştır.
+        "500":
+          description: Sunucu hatası
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
