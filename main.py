@@ -37,6 +37,7 @@ Configuration:
 from fastapi import FastAPI
 from controllers import auth_controller, query_controller, query_controller_v2
 from controllers import raw_query_controller
+from controllers.query_controller_v3_automated import router as auto_query_router
 
 # Initialize FastAPI application
 app = FastAPI(
@@ -50,6 +51,8 @@ app.include_router(auth_controller.router, prefix="/auth", tags=["Authentication
 app.include_router(query_controller.router, prefix="/query", tags=["Query"])
 app.include_router(query_controller_v2.router, prefix="/query/v2", tags=["Query V2"])
 app.include_router(raw_query_controller.router, prefix="/query/raw", tags=["Raw SQL"])
+app.include_router(auto_query_router, prefix="/query", tags=["Auto Query"])
+
 
 # Health check endpoint
 @app.get("/")

@@ -113,6 +113,7 @@ def run_queries_simple(items: list[str], date_range: str = None):
 
     for item in items:
         try:
+            MailLogger.add("⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵")
             MailLogger.add(f"⏵ Item işleniyor: {item}")
 
             sql = get_sql_from_table2(item)
@@ -126,15 +127,18 @@ def run_queries_simple(items: list[str], date_range: str = None):
             # Replace dates if date range is provided
             if date_range:
                 MailLogger.add(f"   • Tarih aralığı tespit edildi → {date_range}")
+                MailLogger.add("⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵")
                 MailLogger.add(f"   • SQL değişmeden önce: {sql}")
                 sql = replace_dates_in_sql(sql, date_range)
+                MailLogger.add("⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵")
                 MailLogger.add(f"   • SQL değiştirildi → {sql}")
-
+            MailLogger.add("⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵")
             MailLogger.add("   • SQL çalıştırılıyor...")
             exec_result = run_sql(sql)
 
             if exec_result and "rows" in exec_result and len(exec_result["rows"]) > 0:
                 value = list(exec_result["rows"][0].values())[0]
+                MailLogger.add("⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵")
                 MailLogger.add(f"   • SQL sonucu: {value}")
                 results[item] = value
             else:
