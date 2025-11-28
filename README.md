@@ -84,7 +84,7 @@ Yeni sürümle birlikte gelişmiş güvenlik filtresi, MailLogger ile e-mail log
    database.py dosyasındaki get_sql_from_table2() fonksiyonu için kullanılacak Query tablosu (sorgu ve prompt saklanır):
 
    ```sql
-   CREATE TABLE [ChefPanel_test].[dbo].[nly_sql_api] (
+   CREATE TABLE [ChefPanel_test].[dbo].[KEY TABLE] (
       [id] INT IDENTITY(1,1) PRIMARY KEY,
       [key_] NVARCHAR(100) NOT NULL,
       [prompt] NVARCHAR(MAX) NULL,
@@ -158,6 +158,7 @@ Kullanıcıdan tarih bilgisi almadan statik SQL sorgularını çalıştırır (�
 
 Sadece SELECT ve WITH ifadelerine izin verilir.
 Tüm mutating SQL komutları otomatik olarak engellenir.
+Bu endpoint artık tek SQL veya çoklu SQL listesi çalıştırabilir.
 
 Desteklenen:
 ✔ SELECT
@@ -174,18 +175,56 @@ Bloklanan:
 
 ## Body örneği:
 
+## Tek SQL Örneği
+
 {
 "sql": "SELECT _ FROM [Table Name] _;",
 "note": "İK raporu için test sorgusu" #note alanı sadece loglama içindir.
 }
 
-## Yanıt:
+## Çoklu SQL Örneği
 
 {
+"sql": [
+"SELECT TOP 5 z_hat_kodu, COUNT(*) AS ArizaSayisi FROM db1.dbo.tabl1 GROUP BY z_hat_kodu",
+"SELECT COUNT(*) AS ToplamAriza FROM db1.dbo.abc_table2"
+],
+"note": "Toplu analiz sorguları"
+}
+
+## Yanıt:Tek SQL de olsa çoklu SQL de olsa yanıt her zaman results listesi döner
+
+✔ Tek SQL Yanıtı
+{
 "user_id": 12,
-"key": "IK_Aylik_Ozet",
-"rowcount": 24,
-"data": [...]
+"results": [
+{
+"columns": ["col1", "col2"],
+"rowcount": 10,
+"rows": [
+{ "col1": "A", "col2": 1 },
+{ "col1": "B", "col2": 2 }
+]
+}
+]
+}
+✔ Çoklu SQL Yanıtı
+{
+"user_id": 12,
+"results": [
+{
+"index": 0,
+"columns": ["z_hat_kodu", "ArizaSayisi"],
+"rowcount": 5,
+"rows": [ ... ]
+},
+{
+"index": 1,
+"columns": ["ToplamAriza"],
+"rowcount": 1,
+"rows": [ ... ]
+}
+]
 }
 
 ## MailLogger (v2.2.0)
