@@ -63,7 +63,7 @@ Yeni sürümle birlikte gelişmiş güvenlik filtresi, MailLogger ile e-mail log
     DB_PASSWORD=your_db_password
     # MailLogger için mail listesi
 
-   MAIL_RECIPIENTS=example@chefseasons.com
+   MAIL_RECIPIENTS=example@gmail.com
 
    ```
 
@@ -84,7 +84,7 @@ Yeni sürümle birlikte gelişmiş güvenlik filtresi, MailLogger ile e-mail log
    database.py dosyasındaki get_sql_from_table2() fonksiyonu için kullanılacak Query tablosu (sorgu ve prompt saklanır):
 
    ```sql
-   CREATE TABLE [ChefPanel_test].[dbo].[KEY TABLE] (
+   CREATE TABLE [db1].[dbo].[Query Table] (
       [id] INT IDENTITY(1,1) PRIMARY KEY,
       [key_] NVARCHAR(100) NOT NULL,
       [prompt] NVARCHAR(MAX) NULL,
