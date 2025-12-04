@@ -73,7 +73,10 @@ def run_raw_sql_endpoint(
                        400 if non-SELECT SQL,
                        500 on execution errors.
     """
+    MailLogger.start("/query/raw/run-sql")
     MailLogger.add(f"⏵ [run_raw_sql_endpoint] POST /query/raw/run-sql çağrıldı.")
+    if body.note:
+        MailLogger.add(f"   • SORU : {body.note}")
 
     # JWT doğrulama
     try:
@@ -95,7 +98,7 @@ def run_raw_sql_endpoint(
         result = run_raw_sql(body.sql)
         MailLogger.add(f"   ✅ Başarılı. Rowcount: {result.get('rowcount')}")
         MailLogger.add("⏵ [run_raw_sql_endpoint] Tamamlandı.\n")
-
+        MailLogger.send()   # <-- EKLENECEK
         return {
             "user_id": user_id,
             "results": [result]
@@ -127,7 +130,7 @@ def run_raw_sql_endpoint(
             })
 
     MailLogger.add("⏵ [run_raw_sql_endpoint] Çoklu SQL tamamlandı.\n")
-
+    MailLogger.send()   # <-- EKLENECEK
     return {
         "user_id": user_id,
         "results": results
