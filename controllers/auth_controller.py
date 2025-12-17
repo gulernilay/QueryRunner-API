@@ -78,7 +78,7 @@ def login(req: LoginRequest):
         MailLogger.add("6) Login endpoint completed successfully")
         MailLogger.send()
 
-        return {"access_token": token, "token_type": "bearer"}
+        return {"access_token": f"Bearer {token}", "token_type": "bearer"}
 
     except HTTPException as e:
         MailLogger.add(f"❌ HTTP Exception: {str(e)}")

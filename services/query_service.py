@@ -33,6 +33,30 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 
+SPECIAL_DAY_BASED_ITEMS = {
+    "Nakit_Donusum_Suresi",
+    "Stok Gün Sayısı",
+    "Tahsil Süresi (gün)",
+    "Borc_Odeme_Suresi",
+}
+
+def get_day_of_year_from_range(date_range: str) -> int:
+    """
+    '02.01.2025 ile 30.11.2025' -> 334
+    """
+    _, end_str = [d.strip() for d in date_range.split("ile")]
+    end_date = datetime.strptime(end_str, "%d.%m.%Y")
+    return end_date.timetuple().tm_yday
+
+def replace_day_constants(sql: str, day_of_year: int) -> str:
+    """
+    SQL içinde 365 / 365.0 / 180 / 180.0 -> day_of_year
+    """
+    sql = re.sub(r"\b365(\.0)?\b", str(day_of_year), sql)
+    sql = re.sub(r"\b180(\.0)?\b", str(day_of_year), sql)
+    return sql
+
+
 def replace_dates_in_sql(sql: str, date_range: str) -> str:
     """
     Replace date occurrences in SQL text with user-provided date range.
@@ -111,6 +135,11 @@ def run_queries_simple(items: list[str], date_range: str = None):
     """
     results = {}
 
+    day_of_year = None
+    if date_range:
+        day_of_year = get_day_of_year_from_range(date_range)
+        MailLogger.add(f"📅 Bitiş tarihi yılın {day_of_year}. günü olarak hesaplandı.")
+
     for item in items:
         try:
             MailLogger.add("⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵")
@@ -132,6 +161,14 @@ def run_queries_simple(items: list[str], date_range: str = None):
                 sql = replace_dates_in_sql(sql, date_range)
                 MailLogger.add("⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵")
                 MailLogger.add(f"   • SQL değiştirildi → {sql}")
+                # 🔥 2️⃣ SADECE 4 ITEM için: 365 / 180 → bitiş gününün yıl içindeki sırası
+                if day_of_year and item in SPECIAL_DAY_BASED_ITEMS:
+                    MailLogger.add("⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵")
+                    MailLogger.add(
+                        f"⚠️ {item} için 365/180 sabitleri {day_of_year} ile güncellendi."
+                    )
+                    sql = replace_day_constants(sql, day_of_year)
+                    MailLogger.add(f"• SQL 4 farklı item için güncellendi → {sql}")
             MailLogger.add("⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵")
             MailLogger.add("   • SQL çalıştırılıyor...")
             exec_result = run_sql(sql)
