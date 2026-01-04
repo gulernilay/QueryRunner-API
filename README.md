@@ -1,7 +1,22 @@
 # QueryRunner API
 
-QueryRunner API, kullanıcı doğrulama, kayıtlı SQL key’leri çalıştırma ve güvenli raw SQL yürütme işlemleri için geliştirilmiş bir FastAPI tabanlı web servisidir.  
-Yeni sürümle birlikte gelişmiş güvenlik filtresi, MailLogger ile e-mail log gönderimi, `/run-sql` endpointine `note` alanı, docstring iyileştirmeleri ve SQL izinlerinin genişletilmesi eklenmiştir.
+QueryRunner API, SQL Server üzerinde güvenli, denetlenebilir ve kontrollü SQL çalıştırmak için geliştirilmiş FastAPI tabanlı bir servistir.
+
+API;
+
+- JWT tabanlı authentication
+
+- Kayıtlı (ön tanımlı) SQL çalıştırma
+
+- Tarih aralığına göre otomatik SQL güncelleme
+
+- Güvenli Raw SQL (SELECT / WITH / EXEC)
+
+- MailLogger ile e-mail tabanlı audit log
+  özelliklerini destekler.
+
+⚠️ Güvenlik Notu
+INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, MERGE gibi DDL/DML komutları otomatik engellenir ve tüm denemeler MailLogger üzerinden loglanır.
 
 ---
 
@@ -14,10 +29,8 @@ Yeni sürümle birlikte gelişmiş güvenlik filtresi, MailLogger ile e-mail log
 - **v2.1.0** → `/query/v2/run-basic` (tarihsiz, statik sorgular)
 - **v2.2.0** →
   - `/run-sql` → `note` alanı eklendi
-  - Gelişmiş Raw SQL güvenliği (SELECT + WITH dışı bloklama)
+  - Gelişmiş Raw SQL güvenliği (SELECT + WITH +EXEC dışı bloklama)
   - MailLogger (SMTP log gönderimi)
-  - Tüm .py dosyalarına docstring eklemeleri
-  - startswith() bug fix
   - Genel API stabilite iyileştirmeleri
 
 ---
@@ -25,12 +38,12 @@ Yeni sürümle birlikte gelişmiş güvenlik filtresi, MailLogger ile e-mail log
 ## Özellikler
 
 - JWT tabanlı kullanıcı doğrulama
-- Token doğrulama mekanizması
 - Kayıtlı SQL sorgularını `items` veya `key` ile çalıştırma
 - Tarih aralığı destekli sorgular (örnek: `"02.01.2025 ile 31.08.2025"`)
-- Tarihsiz statik sorgular (İK gibi)
-- Gelişmiş SELECT/WITH güvenlik filtresi
+- Tarihsiz statik sorgular
+- Güvenli Raw SQL (SELECT / WITH / EXEC)
 - Raw SQL isteklerine opsiyonel `note` alanı (log amaçlı)
+- Çoklu SQL çalıştırma (analiz senaryoları)
 - MailLogger ile mail tabanlı log gönderimi
 - Sağlık kontrolü endpointi (`/`)
 - Docker ile containerize deploy desteği
@@ -81,7 +94,7 @@ Yeni sürümle birlikte gelişmiş güvenlik filtresi, MailLogger ile e-mail log
    );
    ```
 
-   database.py dosyasındaki get_sql_from_table2() fonksiyonu için kullanılacak Query tablosu (sorgu ve prompt saklanır):
+   database.py dosyasındaki get_sql_from_table2() fonksiyonu için kullanılacak Query tablosu (key, prompt ve sql saklanır):
 
    ```sql
    CREATE TABLE [db1].[dbo].[Query Table] (
@@ -163,12 +176,12 @@ Bu endpoint artık tek SQL veya çoklu SQL listesi çalıştırabilir.
 Desteklenen:
 ✔ SELECT
 ✔ WITH
+✔ EXEC
 
 Bloklanan:
 
 ❌ INSERT, UPDATE, DELETE
 ❌ DROP, ALTER, TRUNCATE
-❌ EXEC
 ❌ CREATE
 ❌ MERGE
 ❌ SELECT dışı tüm komutlar
@@ -225,6 +238,107 @@ Bloklanan:
 "rows": [ ... ]
 }
 ]
+}
+
+- `POST /query/query` :
+
+Kayıtlı SQL sorgularını çalıştırır. İsteğe bağlı tarih aralığı kabul eder.Bu endpoint, sistemde önceden tanımlı ve güvenli kabul edilen SQL sorgularını çalıştırmak için tasarlanmıştır.Kullanıcı SQL göndermez; yalnızca çalıştırılmasını istediği finansal / operasyonel kalemleri (items) belirtir.
+
+## Kısa Çalışma Prensibi
+
+- JWT token doğrulanır.
+  items listesinde yer alan her kalem için:
+- Backend’de tanımlı SQL bulunur.
+  Tarih alanı gönderilmişse:
+- SQL içindeki sabit tarih ifadeleri otomatik güncellenir.SQL’ler güvenli şekilde çalıştırılır.
+- Her kalem için tek bir sonuç üretilir.
+- Hata olan kalemler null döner, diğerleri çalışmaya devam eder.
+
+## Header
+
+- Authorization: Bearer <JWT_TOKEN>
+- Content-Type: application/json
+
+## Body
+
+Tarihli Kullanım {
+"items": [
+"Net_Satışlar",
+"Brut_Kar_Marjı"
+],
+"Tarih": "02.01.2025 ile 30.09.2025"
+}
+
+Tarihsiz Kullanım {
+"items": [
+"Dönen_Varlıklar",
+"Toplam_Varlıklar"
+]
+}
+
+## Result (Response)
+
+{
+"user_id": 3,
+"items": [
+"Net_Satışlar",
+"Brut_Kar_Marjı"
+],
+"result": {
+"Net_Satışlar": 4367646463635335.62,
+"Brut_Kar_Marjı": 0.45345312
+}
+}
+
+- `POST /query/query_automatized`
+
+Bu endpoint, tarih bilgisi kullanıcıdan alınmadan, sistem tarafından otomatik hesaplanan tarih aralığı ile kayıtlı SQL sorgularını çalıştırmak için tasarlanmıştır.
+
+Özellikle:
+
+- Zamanlanmış işler
+- Otomatik rapor mailleri
+- LLM agent tetiklemeleri için kullanılır.
+
+## Otomatik Tarih Hesaplama Mantığı
+
+Bitiş Tarihi : Endpoint’in çağrıldığı gün (bugün)
+Başlangıç Tarihi
+
+- Eğer yıl 2025 ise → 02.01.2025
+- Diğer yıllar için → 01.01.<YIL>
+  Örnek:
+  01.01.2026 ile 04.01.2026
+
+## Header
+
+- Authorization: Bearer <JWT_TOKEN>
+- Content-Type: application/json
+
+## Body
+
+{
+"input": "finansal rasyo raporu oluştur"
+}
+
+input alanı tetikleyici / bağlamsal amaçlıdır.
+Tarih bilgisi beklenmez.
+
+## Result (Response)
+
+{
+"user_id": 3,
+"auto_date_range": "01.01.2026 ile 04.01.2026",
+"items": [
+"Net_Satışlar",
+"Brut_Kar_Marjı",
+"Stok Gün Sayısı"
+],
+"results": {
+"Net_Satışlar": 436818681.62,
+"Brut_Kar_Marjı": 0.4012,
+"Stok Gün Sayısı": 36.93
+}
 }
 
 ## MailLogger (v2.2.0)

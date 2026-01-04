@@ -8,7 +8,7 @@ info:
     geliştirilmiş FastAPI tabanlı bir servistir.
 
     API, JWT tabanlı authentication, tarih aralıklı sorgular, statik sorgular,
-    güvenli raw SQL (SELECT/WITH) çalıştırma ve MailLogger ile e-mail log
+    güvenli raw SQL (SELECT/WITH/EXEC) çalıştırma ve MailLogger ile e-mail log
     gönderimi özelliklerini destekler.
 
     ⚠️ Güvenlik Notu:
@@ -16,7 +16,7 @@ info:
     otomatik olarak engellenir ve tüm denemeler MailLogger aracılığıyla loglanır.
 
 servers:
-  - url: http://192.168.2.98:8275
+  - url: http://78.189.179.50:17487
     description: Production Docker Server (On-Prem)
 
 tags:
@@ -35,7 +35,7 @@ paths:
   /:
     get:
       summary: Health Check
-      description: Sunucunun aktif olup olmadığını doğrular.
+      description: Sunucunun aktif olup olmadığını doğrular.Herhangi bir kimlik doğrulaması gerektirmez.
       tags: [System]
       responses:
         "200":
@@ -47,7 +47,7 @@ paths:
 
   /auth/login:
     post:
-      summary: Kullanıcı girişi (JWT Token üretimi)
+      summary: Bu endpoint, kullanıcı adı ve şifre bilgilerini doğrulayarak JWT tabanlı bir access token üretir.Üretilen token, API’deki korumalı endpointlere erişim için kullanılır.
       description: >
         Başarılı giriş sonrası token **Bearer <token>** formatında döner.
         Bu token tüm korumalı endpointlerde Authorization header içinde kullanılmalıdır.
@@ -79,7 +79,7 @@ paths:
 
   /query/:
     post:
-      summary: Tarihli veya tarihsiz kayıtlı SQL sorgularını çalıştır
+      summary: Bu endpoint, sistemde önceden bir tabloda kaydedilmiş SQL sorgularını çalıştırır.Kayıtlı SQL Sorguları tarih aralıkları içerir. Kullanıcıdan alınan tarih aralığına göre kayıtlı SQL Sorguları güncellenir ve çalıştırılır.
       tags: [Query]
       security:
         - bearerAuth: []
@@ -112,10 +112,140 @@ paths:
                   Net_Satışlar: 1500000
         "401":
           description: Token geçersiz
+  /query/query:
+    post:
+      summary: Tarih aralığına göre seçilen finansal kalemleri hesaplar
+      description: >
+        Bu endpoint, kullanıcı tarafından gönderilen **finansal kalem (item) listesi**
+        ve **tarih aralığı** bilgisini kullanarak, sistemde önceden tanımlı
+        SQL ve hesaplama kurallarını çalıştırır ve **hesaplanmış finansal sonuçlar**
+        döndürür.
 
+        Çalışma adımları:
+
+        1. Kullanıcı JWT token üzerinden doğrulanır ve `user_id` belirlenir.
+        2. `items` alanında gönderilen her bir finansal kalem için:
+           - İlgili SQL metni, backend’de bulunan kayıtlı SQL tablosundan
+             (örn. `nly_sql_api`) alınır.
+        3. `Tarih` alanı gönderilmişse:
+           - "DD.MM.YYYY ile DD.MM.YYYY" formatındaki tarih aralığı parse edilir.
+           - SQL içindeki sabit tarih ifadeleri (=`YYYY-MM-DD`, `YYYYMMDD`,
+             `BETWEEN ... AND ...`) bu tarih aralığına göre otomatik olarak güncellenir.
+        4. Bazı özel finansal kalemler için:
+           - SQL içindeki sabit `365` / `180` değerleri,
+             bitiş tarihinin yıl içindeki gün sayısına göre dinamik olarak değiştirilir.
+           - Bu işlem; tahsil süresi, stok gün sayısı, nakit dönüşüm süresi gibi
+             gün bazlı rasyolar için uygulanır.
+        5. Güncellenmiş SQL güvenli şekilde çalıştırılır.
+        6. Her sorgunun ilk satırındaki ilk kolon değeri alınarak,
+           ilgili finansal kalemin sonucu olarak kaydedilir.
+        7. Herhangi bir kalemde hata oluşursa:
+           - Hata MailLogger üzerinden loglanır.
+           - İlgili kalem için sonuç `null` olarak döndürülür.
+        8. Tüm sonuçlar tek bir response altında birleştirilerek kullanıcıya iletilir.
+
+        Bu endpoint:
+        -  Raw SQL kabul etmez
+        -  Kullanıcıdan hesaplama mantığı almaz
+        -  Sadece sistemde tanımlı ve güvenli SQL/hafıza alınmış kuralları çalıştırır
+
+        Amaç:
+        - Finansal rasyoların ve özet kalemlerin
+          **tutarlı, denetlenebilir ve otomatik** şekilde hesaplanmasını sağlamaktır.
+      tags: [Query]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items, Tarih]
+              properties:
+                items:
+                  type: array
+                  description: >
+                    Hesaplanması istenen finansal kalemlerin listesi.
+                    Her bir değer backend’de tanımlı bir hesaplama anahtarına karşılık gelir.
+                  items:
+                    type: string
+                  example:
+                    - "Dönen_Varlıklar"
+                    - "Net_Satışlar"
+                    - "Brut_Kar_Marjı"
+                Tarih:
+                  type: string
+                  description: >
+                    Doğal dil formatında tarih aralığı.
+                    Örnek format: "02.01.2025 ile 30.09.2025"
+                  example: "02.01.2025 ile 30.09.2025"
+      responses:
+        "200":
+          description: Finansal kalemler başarıyla hesaplandı
+          content:
+            application/json:
+              example:
+                success: true
+                requestId: "32cb66c9-f71b-4d4e-85fa-403421c7b3fc"
+                status: 200
+                statusText: "OK"
+                data:
+                  user_id: 3
+                  items:
+                    - "Dönen_Varlıklar"
+                    - "Kısa_Vadeli_Borçlar"
+                    - "Net_Dönem_Karı"
+                    - "Net_Satışlar"
+                    - "Ortalama_Ticari_Alacaklar"
+                    - "Toplam_Borçlar"
+                    - "Toplam_Varlıklar"
+                    - "Stok"
+                    - "Alacak Devir Hızı"
+                    - "Brut_Kar_Marjı"
+                    - "Stok Devir Hızı"
+                    - "Tahsil Süresi (gün)"
+                    - "Stok Gün Sayısı"
+                    - "Ozkaynak_Durumu"
+                    - "Borc_Odeme_Suresi"
+                    - "Nakit_Donusum_Suresi"
+                    - "Faaliyet_Kar_Marjı"
+                    - "Borç/Özkaynak"
+                    - "Kısa Vadeli Borç/Toplam Borç"
+                  result:
+                    Dönen_Varlıklar: 246238742.95
+                    Kısa_Vadeli_Borçlar: -125227968.93
+                    Net_Dönem_Karı: -54914299.56
+                    Net_Satışlar: -436818681.62
+                    Ortalama_Ticari_Alacaklar: 76240486.995
+                    Toplam_Borçlar: -197154614.42
+                    Toplam_Varlıklar: 467459827.6
+                    Stok: 56765389
+                    Alacak Devir Hızı: -6.095037554500891
+                    Brut_Kar_Marjı: -0.4012
+                    Stok Devir Hızı: 7.390866962860025
+                    Tahsil Süresi (gün): 44.83015776761529
+                    Stok Gün Sayısı: 36.9378
+                    Ozkaynak_Durumu: -197086147.1
+                    Borc_Odeme_Suresi: -57.12089879026119
+                    Nakit_Donusum_Suresi: 49.267842542880274
+                    Faaliyet_Kar_Marjı: -0.2171
+                    Borç/Özkaynak: 1.0003
+                    Kısa Vadeli Borç/Toplam Borç: 0.6351
+        "400":
+          description: Geçersiz tarih formatı veya hesaplama anahtarı
+        "401":
+          description: Token geçersiz
+        "500":
+          description: Sunucu hatası
   /query/v2/run-basic:
     post:
-      summary: Tarihsiz statik SQL sorgularını çalıştır
+      summary: Kayıtlı statik SQL sorgusunu key ile çalıştırır
+      description: >
+        Bu endpoint, sistemde bir tabloda **key → SQL** eşlemesi olarak saklanan **tarihsiz (statik)** sorguları çalıştırır.Kullanıcı yalnızca bir **key** gönderir; backend ilgili SQL’i güvenli şekilde bulur ve çalıştırır. Bu endpoint, **parametre gerektirmeyen raporlar**, **özet tablolar** ve **referans listeleri** gibi senaryolar için tasarlanmıştır.
+        Not:
+        - Sorgu bulunamazsa **404** döner.
+        - Bu endpoint raw SQL kabul etmez; yalnızca kayıtlı sorguları çalıştırır.
       tags: [Query]
       security:
         - bearerAuth: []
@@ -129,6 +259,9 @@ paths:
               properties:
                 key:
                   type: string
+                  description: >
+                    Çalıştırılacak kayıtlı SQL sorgusunun anahtarı (key).
+                    Bu değer, backend’de key→SQL eşlemesi olan tabloda aranır.
                   example: IK_Aylik_Ozet
       responses:
         "200":
@@ -143,17 +276,122 @@ paths:
                   - Departman: "Sos İşletme"
                     PersonelSayisi: 18
         "404":
-          description: SQL key bulunamadı
+          description: Gönderilen key için kayıtlı bir SQL sorgusu bulunamadı
         "401":
           description: Token geçersiz
 
+  /query/query_automatized:
+    post:
+      summary: >
+        Otomatik finansal rapor ve rasyo sorgusu çalıştırır.Tarih aralığı sistem tarafından otomatik olarak belirlenir.
+      description: >
+        Bu endpoint, **otomatik finansal rasyo ve özet raporları** üretmek için tasarlanmıştır.
+
+        Çalışma mantığı:
+        - Sistem, çalıştırıldığı günü **bitiş tarihi** olarak alır
+        - Başlangıç tarihi, tanımlı iş kuralına göre otomatik belirlenir
+        - Kullanıcıdan **tarih aralığı alınmaz**
+        - Kayıtlı finansal kalemler otomatik olarak çalıştırılır
+
+        Bu endpoint özellikle:
+        - Günlük / aylık otomatik rapor mailleri
+        - LLM tabanlı agent’lar
+        - Zamanlanmış finansal özetler için kullanılır.
+
+        Raw SQL çalıştırmaz.  
+        Sadece sistemde tanımlı ve güvenli finansal senaryoları çalıştırır.
+      tags: [Query]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [input]
+              properties:
+                input:
+                  type: string
+                  description: >
+                    Otomatik raporu tetikleyen doğal dil komutu.
+                    İçerik serbesttir, tarih bilgisi beklenmez.
+                  example: "finansal rasyo raporu oluştur"
+                context:
+                  type: object
+                  nullable: true
+                  description: >
+                    Opsiyonel bağlamsal bilgiler.
+                    (Kullanıcı rolü, rapor tipi, departman vb.)
+                  example:
+                    role: "finance"
+                    report_type: "daily"
+      responses:
+        "200":
+          description: Otomatik finansal rapor başarıyla oluşturuldu
+          content:
+            application/json:
+              example:
+                success: true
+                requestId: "1a42d43e-42f8-4c3b-88f7-55e965cc58a7"
+                status: 200
+                statusText: "OK"
+                data:
+                  user_id: 3
+                  auto_date_range: "01.01.2026 ile 04.01.2026"
+                  items:
+                    - "Dönen_Varlıklar"
+                    - "Kısa_Vadeli_Borçlar"
+                    - "Net_Dönem_Karı"
+                    - "Net_Satışlar"
+                    - "Ortalama_Ticari_Alacaklar"
+                    - "Toplam_Borçlar"
+                    - "Toplam_Varlıklar"
+                    - "Stok"
+                    - "Alacak Devir Hızı"
+                    - "Brut_Kar_Marjı"
+                    - "Stok Devir Hızı"
+                    - "Tahsil Süresi (gün)"
+                    - "Stok Gün Sayısı"
+                    - "Ozkaynak_Durumu"
+                    - "Borc_Odeme_Suresi"
+                    - "Nakit_Donusum_Suresi"
+                    - "Faaliyet_Kar_Marjı"
+                    - "Borç/Özkaynak"
+                    - "Kısa Vadeli Borç/Toplam Borç"
+                  results:
+                    Dönen_Varlıklar: null
+                    Kısa_Vadeli_Borçlar: null
+                    Net_Dönem_Karı: null
+                    Net_Satışlar: null
+                    Ortalama_Ticari_Alacaklar: null
+                    Toplam_Borçlar: null
+                    Toplam_Varlıklar: null
+                    Stok: null
+                    Alacak Devir Hızı: null
+                    Brut_Kar_Marjı: null
+                    Stok Devir Hızı: null
+                    Tahsil Süresi (gün): null
+                    Stok Gün Sayısı: null
+                    Ozkaynak_Durumu: null
+                    Borc_Odeme_Suresi: null
+                    Nakit_Donusum_Suresi: null
+                    Faaliyet_Kar_Marjı: null
+                    Borç/Özkaynak: null
+                    Kısa Vadeli Borç/Toplam Borç: null
+        "400":
+          description: >
+            Otomatik rapor senaryosu oluşturulamadı veya iş kuralı hatası oluştu
+        "401":
+          description: Token geçersiz
+        "500":
+          description: Sunucu hatası
+
   /query/raw/run-sql:
     post:
-      summary: Güvenli Raw SQL çalıştır (SELECT / WITH)
+      summary: RAW SQL çalıştırır (SELECT / WITH / EXEC)
       description: >
-        Bu endpoint yalnızca SELECT ve WITH (CTE) ifadeleri ile başlayan SQL komutlarını kabul eder.
-
-        ❌ INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, EXEC, MERGE gibi
+        Bu endpoint yalnızca SELECT, WITH (CTE) ve EXEC ifadeleri ile başlayan SQL komutlarını kabul eder.Tek bir sorgu veya birden fazla sorgu (SQL listesi) gönderilebilir.Çoklu SQL kullanımı, özellikle **analiz ve raporlama senaryolarında**,farklı view veya CTE’lerden gelen verilerin **tek API çağrısı ile** toplanmasını sağlar.❌ INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, MERGE gibi
         DDL/DML komutları otomatik olarak engellenir ve MailLogger ile loglanır.
       tags: [Raw SQL]
       security:
@@ -172,32 +410,80 @@ paths:
                     - type: array
                       items:
                         type: string
-                  description: "Tek SQL veya SQL listesi. Sadece SELECT / WITH."
+                  description: >
+                    Tek SQL veya SQL listesi.
+                    SQL listesi kullanımı, analiz raporlarında farklı view’lardan veya CTE’lerden gelen verilerin **tek seferde çağrılması** için tasarlanmıştır.Sadece SELECT / WITH / EXEC ifadeleri kabul edilir.
                 note:
                   type: string
                   nullable: true
-                  description: "Opsiyonel log açıklaması"
+                  description: >
+                    Opsiyonel log açıklaması.Özellikle rapor veya analiz senaryolarında bağlam bilgisi vermek için kullanılır.
+            examples:
+              single_sql:
+                summary: Tek SQL çalıştırma
+                description: >
+                  Tek bir SELECT sorgusu çalıştırır.Basit veri çekme veya tek tablo/view sorguları için kullanılır.
+                value:
+                  sql: "SELECT TOP 10 Name, Age FROM ChefsAI.dbo.Users"
+                  note: "Kullanıcı listesi test sorgusu"
+
+              multiple_sql:
+                summary: Analiz / rapor amaçlı çoklu SQL çalıştırma
+                description: >
+                  Analiz raporu oluştururken, farklı view’lardan veya CTE’lerden gelen verilerin tek API çağrısında toplanmasını sağlar.Sorgular sıralı olarak çalıştırılır ve sonuçlar index bazlı döndürülür.
+                value:
+                  sql:
+                    - "SELECT COUNT(*) AS UserCount FROM ChefsAI.dbo.Users"
+                    - "WITH CTE AS (SELECT Age FROM ChefsAI.dbo.Users) SELECT AVG(Age) AS AvgAge FROM CTE"
+                    - "EXEC dbo.sp_GetActiveUsers"
+                  note: "Kullanıcı analiz raporu – çoklu veri kaynağı"
       responses:
         "200":
           description: Sorgu(lar) başarıyla çalıştırıldı
           content:
             application/json:
-              example:
-                user_id: 12
-                results:
-                  - index: 0
-                    columns: ["Name", "Age"]
-                    rowcount: 2
-                    rows:
-                      - { "Name": "Nilay", "Age": 28 }
-                      - { "Name": "Ayşe", "Age": 29 }
+              examples:
+                single_result:
+                  summary: Tek SQL sonucu
+                  value:
+                    user_id: 12
+                    results:
+                      - index: 0
+                        columns: ["Name", "Age"]
+                        rowcount: 2
+                        rows:
+                          - { "Name": "Nilay", "Age": 28 }
+                          - { "Name": "Ayşe", "Age": 29 }
+
+                multiple_result:
+                  summary: Analiz raporu için çoklu SQL sonucu
+                  value:
+                    user_id: 12
+                    results:
+                      - index: 0
+                        columns: ["UserCount"]
+                        rowcount: 1
+                        rows:
+                          - { "UserCount": 245 }
+                      - index: 1
+                        columns: ["AvgAge"]
+                        rowcount: 1
+                        rows:
+                          - { "AvgAge": 31 }
+                      - index: 2
+                        columns: ["UserId", "UserName"]
+                        rowcount: 3
+                        rows:
+                          - { "UserId": 1, "UserName": "Nilay" }
+                          - { "UserId": 2, "UserName": "Ayşe" }
+                          - { "UserId": 3, "UserName": "Mehmet" }
+
         "400":
-          description: SELECT/WITH/EXEC dışındaki SQL komutları yasaktır
+          description: SELECT / WITH / EXEC dışındaki SQL komutları yasaktır
         "401":
           description: Token geçersiz
         "500":
           description: Sunucu hatası
-
 components:
   securitySchemes:
     bearerAuth:
