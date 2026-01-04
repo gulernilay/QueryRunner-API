@@ -1,5 +1,5 @@
 """
-Query Controller (English docstring)
+Query Controller 
 
 Provides HTTP endpoints to execute predefined SQL queries stored in the database.
 Authentication via JWT bearer token is required for all endpoints.
@@ -73,20 +73,20 @@ def query(
 
     MailLogger.add("1) Endpoint çağrısı alındı.")
 
-    # Token doğrulama
+    # Token validation
     MailLogger.add("2) Token doğrulaması başladı.")
     token = credentials.credentials
     payload = verify_jwt(token)
 
     if not payload:
-        MailLogger.add("❌ Token doğrulaması başarısız!")
+        MailLogger.add("Token doğrulaması başarısız!")
         MailLogger.send()
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     user_id = payload.get("user_id")
     MailLogger.add(f"3) Token doğrulandı → User ID: {user_id}")
 
-    # Body bilgisi
+    
     MailLogger.add(f"4) Gelen items listesi: {body.items}")
     if body.Tarih:
         MailLogger.add(f"5) Tarih aralığı: {body.Tarih}")
@@ -108,6 +108,6 @@ def query(
         }
 
     except Exception as e:
-        MailLogger.add(f"❌ Hata: {str(e)}")
+        MailLogger.add(f" Hata: {str(e)}")
         MailLogger.send()
         raise HTTPException(status_code=500, detail=str(e))

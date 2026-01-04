@@ -1,5 +1,5 @@
 """
-Mail Logger Utility (English docstring)
+Mail Logger Utility
 
 Provides a buffered logging system that accumulates log messages and sends them
 via email to a list of recipients. Useful for audit trails, error notifications

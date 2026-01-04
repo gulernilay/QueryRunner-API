@@ -44,8 +44,8 @@ def send_mail(to_email: str, subject: str, message: str):
     Notes:
         - Sender address is read from MAIL_SENDER environment variable.
         - Authentication uses MAIL_APP_PASSWORD from environment (Gmail app-specific password).
-        - On success, logs "📧 Mail gönderildi: {to_email}".
-        - On failure, logs "❌ Mail gönderilemedi: {error}" and continues execution.
+        - On success, logs " Mail gönderildi: {to_email}".
+        - On failure, logs " Mail gönderilemedi: {error}" and continues execution.
     """
     smtp_server = "smtp.gmail.com"
     smtp_port = 587

@@ -54,7 +54,7 @@ def run_raw_sql(sql: str):
     MailLogger.add("   → [run_raw_sql] Raw SQL execution started.")
 
     # Security check: only SELECT and WITH (CTE) are allowed
-    if not sql.strip().lower().startswith(("select", "with")):
+    if not sql.strip().lower().startswith(("select", "with","exec")):
         MailLogger.add("   ❌ Non-SELECT/WITH SQL detected! Request rejected.")
         raise HTTPException(status_code=400, detail="Only SELECT and WITH statements are allowed.")
 

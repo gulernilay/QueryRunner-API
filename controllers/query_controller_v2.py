@@ -1,5 +1,5 @@
 """
-Query Controller V2 (English docstring)
+Query Controller V2 
 
 Provides HTTP endpoints to execute basic (stateless) predefined SQL queries stored in the database.
 Unlike query_controller.py, this controller does NOT accept date parameters; it runs fixed queries
@@ -54,17 +54,17 @@ def run_basic_query(
     Raises:
         HTTPException: 401 if token invalid, 404 if key not found, 500 on execution errors.
     """
-    # Mail Logger başlat
+    # Mail Logger is started
     MailLogger.start("/query/v2/run-basic")
     MailLogger.add("1) Endpoint çağrısı alındı.")
 
-    # Token doğrulama
+    # Token validation
     MailLogger.add("2) Token doğrulaması başladı.")
     token = credentials.credentials
     payload = verify_jwt(token)
 
     if not payload:
-        MailLogger.add("❌ Token doğrulaması başarısız!")
+        MailLogger.add(" Token doğrulaması başarısız!")
         MailLogger.send()
         raise HTTPException(status_code=401, detail="Unauthorized")
 
@@ -89,6 +89,6 @@ def run_basic_query(
         }
 
     except Exception as e:
-        MailLogger.add(f"❌ Hata oluştu: {str(e)}")
+        MailLogger.add(f" Hata oluştu: {str(e)}")
         MailLogger.send()
         raise

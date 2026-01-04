@@ -14,14 +14,31 @@ env/
 venv/
 .vscode/
 .idea/
+.env_venv/
+.virtualenv/
 
 # Git and build
 .git/
 .gitignore
 *.log
+.vscode/
+.idea/
 
 # Windows system temp
 *.tmp
 *.temp
 *.bak
 tombstones.txt
+
+# ===============================
+#  Logs & Runtime Files
+# ===============================
+*.log
+queryrunner.log
+logs/
+
+# ===============================
+# Docs / Misc
+# ===============================
+README.md
+*.md

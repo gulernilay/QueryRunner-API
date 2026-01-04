@@ -30,7 +30,19 @@ logger = logging.getLogger(__name__)
 
 def run_query_basic(key: str):
     """
-    Sadece key alır, nly_sql_api tablosundaki sorguyu bulur ve çalıştırır.
+    Execute a basic predefined SQL query by key.
+
+    Fetches the SQL text from the nly_sql_api table using the provided key,
+    executes it against the target database, and returns the result.
+
+    Args:
+        key (str): The key to identify the SQL query in the database.
+
+    Returns:
+        dict: The result of the SQL execution, containing rows and metadata.
+
+    Raises:
+        HTTPException: 404 if key not found, 400 on SQL errors, 500 on unexpected errors.
     """
     MailLogger.add(f"⏵ [run_query_basic] İşlem başladı: key='{key}'")
 

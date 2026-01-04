@@ -1,5 +1,5 @@
 """
-JWT Utilities (English docstring)
+JWT Utilities 
 
 Provides helper functions to generate, decode and verify JWT (JSON Web Tokens)
 for user authentication and authorization.

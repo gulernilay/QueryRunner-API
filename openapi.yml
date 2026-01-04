@@ -1,16 +1,23 @@
 openapi: 3.0.3
+
 info:
   title: QueryRunner API
-  description: >
-    QueryRunner API, SQL Server üzerinde güvenli ve kontrollü sorgu yürütmek için geliştirilmiş FastAPI tabanlı bir servistir.
-
-    Bu API JWT tabanlı authentication, tarih aralıklı sorgular, statik sorgular, güvenli raw SQL çalıştırma ve MailLogger ile e-mail
-    log gönderimi özelliklerini destekler.
   version: "2.2.0"
+  description: >
+    QueryRunner API, SQL Server üzerinde güvenli ve kontrollü sorgu yürütmek için
+    geliştirilmiş FastAPI tabanlı bir servistir.
+
+    API, JWT tabanlı authentication, tarih aralıklı sorgular, statik sorgular,
+    güvenli raw SQL (SELECT/WITH) çalıştırma ve MailLogger ile e-mail log
+    gönderimi özelliklerini destekler.
+
+    ⚠️ Güvenlik Notu:
+    DDL ve DML komutları (INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE vb.)
+    otomatik olarak engellenir ve tüm denemeler MailLogger aracılığıyla loglanır.
 
 servers:
-  - url: http://localhost:8000
-    description: Local Development Server
+  - url: http://192.168.2.98:8275
+    description: Production Docker Server (On-Prem)
 
 tags:
   - name: Auth
@@ -18,7 +25,9 @@ tags:
   - name: Query
     description: Kayıtlı SQL sorgularını çalıştıran endpointler
   - name: Raw SQL
-    description: Güvenli SELECT/WITH tabanlı SQL yürütme
+    description: >
+      Güvenli SELECT / WITH tabanlı SQL yürütme.
+      DDL/DML komutları otomatik olarak engellenir ve loglanır.
   - name: System
     description: Sistem ve sağlık kontrolü endpointleri
 
@@ -27,27 +36,29 @@ paths:
     get:
       summary: Health Check
       description: Sunucunun aktif olup olmadığını doğrular.
-      tags:
-        - System
+      tags: [System]
       responses:
         "200":
-          description: API is running
+          description: API çalışıyor
           content:
             application/json:
               example:
-                status: ok
+                message: "QueryRunner API is running 🚀"
 
   /auth/login:
     post:
-      summary: Kullanıcı girişi (JWT Token)
-      tags:
-        - Auth
+      summary: Kullanıcı girişi (JWT Token üretimi)
+      description: >
+        Başarılı giriş sonrası token **Bearer <token>** formatında döner.
+        Bu token tüm korumalı endpointlerde Authorization header içinde kullanılmalıdır.
+      tags: [Auth]
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              required: [username, password]
               properties:
                 username:
                   type: string
@@ -60,24 +71,16 @@ paths:
           description: JWT token başarıyla üretildi
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  access_token:
-                    type: string
-                  token_type:
-                    type: string
               example:
-                access_token: "eyJhbGciOiJIUzI1NiIsInR..."
+                access_token: "Bearer eyJhbGciOiJIUzI1NiIsInR..."
                 token_type: bearer
         "401":
           description: Kullanıcı adı veya şifre hatalı
 
   /query/:
     post:
-      summary: Kayıtlı SQL sorgularını çalıştır
-      tags:
-        - Query
+      summary: Tarihli veya tarihsiz kayıtlı SQL sorgularını çalıştır
+      tags: [Query]
       security:
         - bearerAuth: []
       requestBody:
@@ -86,6 +89,7 @@ paths:
           application/json:
             schema:
               type: object
+              required: [items]
               properties:
                 items:
                   type: array
@@ -94,7 +98,7 @@ paths:
                   example: ["Net_Satışlar"]
                 Tarih:
                   type: string
-                  description: "Tarih aralığı örnek: 02.01.2025 ile 31.08.2025"
+                  description: "Örnek: 02.01.2025 ile 31.08.2025"
                   example: "02.01.2025 ile 31.08.2025"
       responses:
         "200":
@@ -102,15 +106,17 @@ paths:
           content:
             application/json:
               example:
-                Net_Satışlar: 1500000
+                user_id: 12
+                items: ["Net_Satışlar"]
+                result:
+                  Net_Satışlar: 1500000
         "401":
           description: Token geçersiz
 
   /query/v2/run-basic:
     post:
       summary: Tarihsiz statik SQL sorgularını çalıştır
-      tags:
-        - Query
+      tags: [Query]
       security:
         - bearerAuth: []
       requestBody:
@@ -119,6 +125,7 @@ paths:
           application/json:
             schema:
               type: object
+              required: [key]
               properties:
                 key:
                   type: string
@@ -133,7 +140,8 @@ paths:
                 key: IK_Aylik_Ozet
                 rowcount: 24
                 data:
-                  - { "Departman": "Sos İşletme", "PersonelSayisi": 18 }
+                  - Departman: "Sos İşletme"
+                    PersonelSayisi: 18
         "404":
           description: SQL key bulunamadı
         "401":
@@ -141,9 +149,13 @@ paths:
 
   /query/raw/run-sql:
     post:
-      summary: Güvenli Raw SQL çalıştır (sadece SELECT/WITH)
-      tags:
-        - Raw SQL
+      summary: Güvenli Raw SQL çalıştır (SELECT / WITH)
+      description: >
+        Bu endpoint yalnızca SELECT ve WITH (CTE) ifadeleri ile başlayan SQL komutlarını kabul eder.
+
+        ❌ INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, EXEC, MERGE gibi
+        DDL/DML komutları otomatik olarak engellenir ve MailLogger ile loglanır.
+      tags: [Raw SQL]
       security:
         - bearerAuth: []
       requestBody:
@@ -152,31 +164,37 @@ paths:
           application/json:
             schema:
               type: object
+              required: [sql]
               properties:
                 sql:
-                  type: string
-                  description: "Sadece SELECT veya WITH ile başlamalıdır."
-                  example: "SELECT TOP 10 * FROM ..."
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items:
+                        type: string
+                  description: "Tek SQL veya SQL listesi. Sadece SELECT / WITH."
                 note:
                   type: string
                   nullable: true
-                  description: "Opsiyonel log mesajı"
-                  example: "IK raporu test sorgusu"
+                  description: "Opsiyonel log açıklaması"
       responses:
         "200":
-          description: Sorgu başarıyla çalıştırıldı
+          description: Sorgu(lar) başarıyla çalıştırıldı
           content:
             application/json:
               example:
                 user_id: 12
-                rowcount: 3
-                columns: ["Name", "Age"]
-                rows:
-                  - { "Name": "Nilay", "Age": 28 }
-                  - { "Name": "Ayşe", "Age": 29 }
+                results:
+                  - index: 0
+                    columns: ["Name", "Age"]
+                    rowcount: 2
+                    rows:
+                      - { "Name": "Nilay", "Age": 28 }
+                      - { "Name": "Ayşe", "Age": 29 }
         "400":
-          description: >
-            SELECT/WITH dışındaki SQL komutları yasaklanmıştır.
+          description: SELECT/WITH/EXEC dışındaki SQL komutları yasaktır
+        "401":
+          description: Token geçersiz
         "500":
           description: Sunucu hatası
 

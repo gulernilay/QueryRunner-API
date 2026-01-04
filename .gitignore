@@ -9,6 +9,9 @@ __pycache__/
 
 # VS Code
 .vscode/
+.idea/
+*.swp
+*.swo
 
 # Test/coverage
 htmlcov/
@@ -16,6 +19,13 @@ htmlcov/
 .cache/
 .pytest_cache/
 *.log
+
+
+# Virtual Environments
+venv/
+.env_venv/
+.virtualenv/
+
 
 # Locust
 *.csv
@@ -27,3 +37,8 @@ Thumbs.db
 
 # Docker artifacts
 *.tar
+
+# Logs
+logs/
+queryrunner.log
+*.log

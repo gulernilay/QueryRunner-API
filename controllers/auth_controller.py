@@ -1,6 +1,5 @@
-#Login işlemleri
 """
-Authentication Controller (English docstring)
+Authentication Controller
 
 Provides HTTP endpoints for user authentication and JWT token generation.
 
@@ -65,7 +64,7 @@ def login(req: LoginRequest):
         user = authenticate_user(req.username, req.password)
         
         if not user:
-            MailLogger.add("❌ Authentication failed: Invalid credentials")
+            MailLogger.add(" Authentication failed: Invalid credentials")
             MailLogger.send()
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
@@ -81,11 +80,11 @@ def login(req: LoginRequest):
         return {"access_token": f"Bearer {token}", "token_type": "bearer"}
 
     except HTTPException as e:
-        MailLogger.add(f"❌ HTTP Exception: {str(e)}")
+        MailLogger.add(f" HTTP Exception: {str(e)}")
         MailLogger.send()
         raise
 
     except Exception as e:
-        MailLogger.add(f"❌ Unexpected error: {str(e)}")
+        MailLogger.add(f" Unexpected error: {str(e)}")
         MailLogger.send()
         raise HTTPException(status_code=500, detail="Internal server error")

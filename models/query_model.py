@@ -1,5 +1,5 @@
 """
-Query Models (English docstring)
+Query Models
 
 Pydantic models for query-related request and response validation.
 These models enforce type safety and auto-generate OpenAPI documentation.

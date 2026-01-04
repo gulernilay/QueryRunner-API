@@ -1,5 +1,5 @@
 """
-User Models (English docstring)
+User Models
 
 Pydantic models for user authentication and database representation.
 These models enforce type safety, validate input data, and auto-generate OpenAPI documentation.

@@ -1,5 +1,5 @@
 """
-Query Service (v1/v2) - English docstring
+Query Service (v1/v2) 
 
 Provides helpers to fetch predefined SQL texts from the database (ChefPanel_test.dbo.nly_sql_api),
 replace date ranges inside those SQL texts and execute them.
@@ -42,7 +42,13 @@ SPECIAL_DAY_BASED_ITEMS = {
 
 def get_day_of_year_from_range(date_range: str) -> int:
     """
-    '02.01.2025 ile 30.11.2025' -> 334
+    Extract day of year from the end date in the date range.
+
+    Args:
+        date_range (str): Date range in format "DD.MM.YYYY ile DD.MM.YYYY".
+
+    Returns:
+        int: Day of year for the end date (1-366).
     """
     _, end_str = [d.strip() for d in date_range.split("ile")]
     end_date = datetime.strptime(end_str, "%d.%m.%Y")
@@ -74,17 +80,17 @@ def replace_dates_in_sql(sql: str, date_range: str) -> str:
     Returns:
         str: SQL statement with dates replaced. Returns original SQL on parse error.
     """
-    print("Tarih değiştirme fonksiyonu çağrıldı.")
+    print("Date replacement function called.")
     try:
         start_str, end_str = [d.strip() for d in date_range.split("ile")]
         start_date = datetime.strptime(start_str, "%d.%m.%Y").strftime("%Y-%m-%d")
-        print("Başlangıç tarihi:", start_date)
+        print("Start date:", start_date)
         end_date = datetime.strptime(end_str, "%d.%m.%Y").strftime("%Y-%m-%d")
-        print("Bitiş tarihi:", end_date)
+        print("End date:", end_date)
         start_compact = start_date.replace("-", "")
         end_compact = end_date.replace("-", "")
 
-        # 1️⃣ Replace single date comparisons (JournalDate =) with start date
+        # Replace single date comparisons (JournalDate =) with start date
         sql = re.sub(
             r"(JournalDate\s*=\s*)'20\d{2}[-]?\d{2}[-]?\d{2}'",
             fr"\1'{start_date}'",
@@ -96,7 +102,7 @@ def replace_dates_in_sql(sql: str, date_range: str) -> str:
             sql
         )
 
-        # 2️⃣ Replace BETWEEN clauses with start and end dates
+        # Replace BETWEEN clauses with start and end dates
         sql = re.sub(
             r"BETWEEN\s*'20\d{2}[-]?\d{2}[-]?\d{2}'\s*AND\s*'20\d{2}[-]?\d{2}[-]?\d{2}'",
             f"BETWEEN '{start_date}' AND '{end_date}'",
@@ -111,7 +117,7 @@ def replace_dates_in_sql(sql: str, date_range: str) -> str:
         return sql
 
     except Exception as e:
-        print(f"Tarih değiştirme hatası: {e}")
+        print(f"Date replacement error: {e}")
         return sql
 
 
@@ -138,52 +144,52 @@ def run_queries_simple(items: list[str], date_range: str = None):
     day_of_year = None
     if date_range:
         day_of_year = get_day_of_year_from_range(date_range)
-        MailLogger.add(f"📅 Bitiş tarihi yılın {day_of_year}. günü olarak hesaplandı.")
+        MailLogger.add(f"End date calculated as day {day_of_year} of the year.")
 
     for item in items:
         try:
             MailLogger.add("⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵")
-            MailLogger.add(f"⏵ Item işleniyor: {item}")
+            MailLogger.add(f"⏵ Processing item: {item}")
 
             sql = get_sql_from_table2(item)
-            MailLogger.add(f"   • SQL alındı.")
+            MailLogger.add(f"   • SQL retrieved.")
 
             if not sql:
-                MailLogger.add(f"   • SQL bulunamadı!")
+                MailLogger.add(f"   • SQL not found!")
                 results[item] = None
                 continue
 
             # Replace dates if date range is provided
             if date_range:
-                MailLogger.add(f"   • Tarih aralığı tespit edildi → {date_range}")
+                MailLogger.add(f"   • Date range detected → {date_range}")
                 MailLogger.add("⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵")
-                MailLogger.add(f"   • SQL değişmeden önce: {sql}")
+                MailLogger.add(f"   • SQL before change: {sql}")
                 sql = replace_dates_in_sql(sql, date_range)
                 MailLogger.add("⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵")
                 MailLogger.add(f"   • SQL değiştirildi → {sql}")
-                # 🔥 2️⃣ SADECE 4 ITEM için: 365 / 180 → bitiş gününün yıl içindeki sırası
+                # SADECE 4 ITEM için: 365 / 180 → bitiş gününün yıl içindeki sırası
                 if day_of_year and item in SPECIAL_DAY_BASED_ITEMS:
                     MailLogger.add("⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵")
                     MailLogger.add(
-                        f"⚠️ {item} için 365/180 sabitleri {day_of_year} ile güncellendi."
+                        f" Constants 365/180 updated to {day_of_year} for {item}."
                     )
                     sql = replace_day_constants(sql, day_of_year)
-                    MailLogger.add(f"• SQL 4 farklı item için güncellendi → {sql}")
+                    MailLogger.add(f"• SQL updated for 4 different items → {sql}")
             MailLogger.add("⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵")
-            MailLogger.add("   • SQL çalıştırılıyor...")
+            MailLogger.add("   • Executing SQL...")
             exec_result = run_sql(sql)
 
             if exec_result and "rows" in exec_result and len(exec_result["rows"]) > 0:
                 value = list(exec_result["rows"][0].values())[0]
                 MailLogger.add("⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵⏵")
-                MailLogger.add(f"   • SQL sonucu: {value}")
+                MailLogger.add(f"   • SQL result: {value}")
                 results[item] = value
             else:
-                MailLogger.add("   • Sonuç yok.")
+                MailLogger.add("   • No result.")
                 results[item] = None
 
         except Exception as e:
-            MailLogger.add(f"   ❌ Hata: {str(e)}")
+            MailLogger.add(f"   ❌ Error: {str(e)}")
             results[item] = None
 
     return results

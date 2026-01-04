@@ -1,5 +1,5 @@
 """
-Raw Query Controller (English docstring)
+Raw Query Controller 
 
 Provides HTTP endpoints to execute raw SELECT SQL statements.
 Authentication via JWT bearer token is required for all endpoints.
@@ -82,36 +82,36 @@ def run_raw_sql_endpoint(
     try:
         payload = verify_jwt(credentials.credentials)
         user_id = payload.get("user_id")
-        MailLogger.add(f"   • Token doğrulandı. user_id: {user_id}")
+        MailLogger.add(f"Token doğrulandı. user_id: {user_id}")
     except Exception as e:
-        MailLogger.add(f"   ❌ Token hatası: {str(e)}")
+        MailLogger.add(f"Token hatası: {str(e)}")
         raise HTTPException(status_code=401, detail="Invalid token")
 
     # ---------------------------------------------------
-    # 1️⃣ SQL input tipi: string → tek SQL
+    #  SQL input type: string → single SQL
     # ---------------------------------------------------
     if isinstance(body.sql, str):
-        MailLogger.add(f"   • Tek SQL çalıştırılacak:\n{body.sql}")
+        MailLogger.add(f"Tek SQL çalıştırılacak:\n{body.sql}")
         if body.note:
-            MailLogger.add(f"   • Not: {body.note}")
+            MailLogger.add(f"Not: {body.note}")
 
         result = run_raw_sql(body.sql)
-        MailLogger.add(f"   ✅ Başarılı. Rowcount: {result.get('rowcount')}")
-        MailLogger.add("⏵ [run_raw_sql_endpoint] Tamamlandı.\n")
-        MailLogger.send()   # <-- EKLENECEK
+        MailLogger.add(f"  Başarılı. Rowcount: {result.get('rowcount')}")
+        MailLogger.add(" [run_raw_sql_endpoint] Tamamlandı.\n")
+        MailLogger.send() 
         return {
             "user_id": user_id,
             "results": [result]
         }
 
     # ---------------------------------------------------
-    # 2️⃣ SQL input tipi: liste → çoklu SQL
+    # SQL input type: list→ multiple SQL
     # ---------------------------------------------------
     results = []
-    MailLogger.add(f"   • Çoklu SQL listesi tespit edildi. Adet: {len(body.sql)}")
+    MailLogger.add(f"Çoklu SQL listesi tespit edildi. Adet: {len(body.sql)}")
 
     for index, sql_text in enumerate(body.sql):
-        MailLogger.add(f"   • [{index}] SQL çalıştırılacak:\n{sql_text}")
+        MailLogger.add(f"[{index}] SQL çalıştırılacak:\n{sql_text}")
 
         try:
             r = run_raw_sql(sql_text)
@@ -123,14 +123,14 @@ def run_raw_sql_endpoint(
             })
             MailLogger.add(f"     → [{index}] OK. Rowcount: {r.get('rowcount')}")
         except Exception as e:
-            MailLogger.add(f"     → [{index}] ❌ Hata: {str(e)}")
+            MailLogger.add(f"     → [{index}] Hata: {str(e)}")
             results.append({
                 "index": index,
                 "error": str(e)
             })
 
     MailLogger.add("⏵ [run_raw_sql_endpoint] Çoklu SQL tamamlandı.\n")
-    MailLogger.send()   # <-- EKLENECEK
+    MailLogger.send() 
     return {
         "user_id": user_id,
         "results": results

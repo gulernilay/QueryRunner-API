@@ -16,7 +16,8 @@ from utils.jwt_utils import generate_jwt
 from database import get_user_by_username
 import bcrypt
 
-# Memory dict (örnek, prod'da Redis tercih edilir)
+# In-memory token store for demo purposes
+# In production, use Redis or a database for persistent storage
 token_store = {}
 
 def authenticate_user(username: str, password: str):
